@@ -65,8 +65,8 @@ export default async function generateHandler(req, res) {
     // Step 3: Hot/cold pools from last 10 draws
     const { hotPool, coldPool, analyzedDraws } = calculateHotCold(drawRows);
 
-    // Step 4: Server-side BaZi computation → User_5
-    const baziResult = computeUser5(dob, sex, birthTime || null);
+    // Step 4: Server-side BaZi computation → User_5 (draw_date included so User_5 varies per draw)
+    const baziResult = computeUser5(dob, sex, birthTime || null, draw_date);
     const user5arr   = baziResult.user5;
 
     // Step 5: Hot_1 and Cold_1 from historical pools via Five Elements
