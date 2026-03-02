@@ -114,10 +114,18 @@ export default async function generateHandler(req, res) {
     };
 
     // Step 8: AI call — ranks super7 → Final4 + Final3 + Mystical
-    const prompt    = buildPrompt(ctx);
-    const aiRaw     = await callAI(prompt);
-    const parsed    = parseAiOutput(aiRaw, super7arr);
-    const validated = validateOutput(parsed, super7arr);
+    // Retry up to 3 times if validation status is "Needs Review"
+    const prompt = buildPrompt(ctx);
+    const MAX_AI_ATTEMPTS = 3;
+    let parsed, validated, attempt = 0;
+    do {
+      attempt++;
+      const aiRaw = await callAI(prompt);
+      parsed      = parseAiOutput(aiRaw, super7arr);
+      validated   = validateOutput(parsed, super7arr);
+      if (validated.status === 'Verified') break;
+      console.warn(`AI attempt ${attempt}/${MAX_AI_ATTEMPTS} → Needs Review: ${validated.errors.join(', ')}${attempt < MAX_AI_ATTEMPTS ? ' — retrying…' : ' — using last result'}`);
+    } while (attempt < MAX_AI_ATTEMPTS);
 
     // Step 9: Result object
     const result = {
