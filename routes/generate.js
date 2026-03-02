@@ -70,7 +70,7 @@ export default async function generateHandler(req, res) {
     const user5arr   = baziResult.user5;
 
     // Step 5: Hot_1 and Cold_1 from historical pools via Five Elements
-    const hot1  = computeHot1(hotPool, draw_date)                    ?? (hotPool[0]  ?? 1);
+    const hot1  = computeHot1(hotPool, draw_date, user5arr)           ?? (hotPool[0]  ?? 1);
     const cold1 = computeCold1(coldPool, draw_date, user5arr, hot1)  ?? (coldPool[0] ?? 2);
 
     // Step 6: Build super7 = user5 ∪ {hot1} ∪ {cold1}, exactly 7 unique numbers
