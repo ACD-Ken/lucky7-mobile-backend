@@ -4,7 +4,8 @@
 import { toISO, calculateHotCold, computeUser5, computeHot1, computeCold1,
          parseAiOutput, validateOutput, parseSerpApiResponse } from '../lib/lucky7.js';
 import { buildPrompt, callAI }                                  from '../lib/aiProvider.js';
-import { createServiceClient, fetchDrawHistory, upsertDraw, saveLog } from '../lib/supabase.js';
+import { createServiceClient, fetchDrawHistory, upsertDraw, saveLog,
+         checkAndIncrementDeviceRun }                                  from '../lib/supabase.js';
 
 const MONTH_STARS = { 1:6, 2:5, 3:4, 4:3, 5:2, 6:1, 7:9, 8:8, 9:7, 10:6, 11:5, 12:4 };
 const STAR_NAMES  = { 1:'Water', 2:'Earth', 3:'Wood', 4:'Wood', 5:'Earth', 6:'Metal', 7:'Metal', 8:'Earth', 9:'Fire' };
@@ -40,8 +41,21 @@ export default async function generateHandler(req, res) {
     const dob       = toISO(birthdate);
     const draw_date = toISO(drawDate);
 
-    // Step 1: Draw history (always needed for hot/cold pools)
+    // Step 1: DB client + B. Device run-count gate (checked before any expensive calls)
     const db       = createServiceClient();
+    const deviceId = req.headers['x-device-id'] || null;
+    const MAX_RUNS = 20;
+    const { allowed, runCount } = await checkAndIncrementDeviceRun(db, deviceId, MAX_RUNS);
+    if (!allowed) {
+      return res.status(403).json({
+        error:    'run_limit_reached',
+        message:  `You have reached the maximum of ${MAX_RUNS} runs for this device.`,
+        runCount,
+        maxRuns:  MAX_RUNS
+      });
+    }
+
+    // Step 1b: Draw history (always needed for hot/cold pools)
     const drawRows = await fetchDrawHistory(db);
 
     // Step 2: Draw data — try SerpAPI, fallback to most recent DB record
