@@ -15,7 +15,7 @@ async function runMigrations() {
     console.log('DATABASE_URL not set — skipping auto-migration (device_usage table must be created manually)');
     return;
   }
-  const client = new pg.Client({ connectionString: dbUrl, ssl: { rejectUnauthorized: true } });
+  const client = new pg.Client({ connectionString: dbUrl, ssl: { rejectUnauthorized: false } });
   try {
     await client.connect();
     await client.query(`
@@ -50,27 +50,18 @@ function semverCompare(a, b) {
   return 0;
 }
 
-// ── CORS — block all browser-based cross-origin requests (mobile app only) ────
-app.use(cors({ origin: false }));
+app.use(cors());
 app.use(express.json());
 
-// ── Rate limiting — global: 60 req/min per IP; generate: stricter 10 req/min ──
-const globalLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max:      60,
-  standardHeaders: true,
-  legacyHeaders:   false,
-  message: { error: 'rate_limit', message: 'Too many requests. Please wait a moment.' }
-});
-const generateLimiter = rateLimit({
+// ── Rate limiting — max 10 requests per IP per minute ─────────────────────────
+const limiter = rateLimit({
   windowMs: 60 * 1000,
   max:      10,
   standardHeaders: true,
   legacyHeaders:   false,
   message: { error: 'rate_limit', message: 'Too many requests. Please wait a moment.' }
 });
-app.use(globalLimiter);
-app.use('/api/generate', generateLimiter);
+app.use('/api/generate', limiter);
 
 // ── Shared secret gate ─────────────────────────────────────────────────────────
 app.use('/api', (req, res, next) => {
